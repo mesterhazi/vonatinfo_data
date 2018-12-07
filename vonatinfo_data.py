@@ -1,6 +1,8 @@
 import requests
 import threading
 import logging
+import pymysql.cursors
+import time
 import json
 
 logging.basicConfig(level=logging.INFO)
@@ -10,12 +12,20 @@ handler = logging.FileHandler('vonat_data.log')
 logger.addHandler(handler)
 
 class VonatDataGetter(threading.Thread):
-    def __init__(self, database, period_s=300, url='http://vonatinfo.mav-start.hu/map.aspx/getData'):
+    def __init__(self, database=('127.0.0.1', 'trains'), period_s=300, url='http://vonatinfo.mav-start.hu/map.aspx/getData'):
         logger.info(f"Initializing VonatDataGetter : db:{database} period:{period_s} url:{url}")
         super().__init__()
         self.url = url
         self.period = period_s
-        self.database = None  # placeholder for MySQL DB running on rpi
+        self.db_connection = pymysql.connect(
+            host=database[0],
+            user='vonat_data_getter',
+            password='',
+            db=database[1],
+            charset='utf8mb4',
+            cursorclass = pymysql.cursors.DictCursor
+        )
+        self.enabled = True
         logger.info("Initialization done...")
 
     def _get_data(self, id=False, history=False):
@@ -37,7 +47,7 @@ class VonatDataGetter(threading.Thread):
         action = json_str['d']['action']
         param = json_str['d']['param']
         result = json_str['d']['result']
-        date_time = result['@CreationTime']
+        creation_time = result['@CreationTime']
         package_type = result['@PackageType']  # GpsData expected
 
         train_data = result['Trains']['Train']  # This is a list now
@@ -51,15 +61,57 @@ class VonatDataGetter(threading.Thread):
              '@Relation': str, - "starting_station - final_station"
              '@TrainNumber': str, - Train ID 55[6 digit train number according to elvira.hu]
         """
+        logger.info(f"Unpacking data time: {creation_time}...")
+        ret_data = {
+            'creation_time' : creation_time,
+            'train_data' : train_data,
+            'day' : time.strftime('%Y-%m-%d')
+        }
 
-    def _upload_to_database(self):
+        return ret_data
+
+    def _upload_to_database(self, data_dict):
+        """ Uploads the given data to a mysql server that is given in the __init__ method of the class"""
+        self.db_connection.ping(reconnect=True)  # reconnects if needed
+        insert = """INSERT INTO 'trains' ('creation_date', 'day', 'relation', 'train_number', 'line', 
+        'delay', 'elvira_id', 'coord_lat', 'coord_lon', 'company') 
+        VALUES (%s, %s, %s, %s, %s, %d, %s, %f, %f, %s)"""
+        logger.info('Connected to database.')
+        try:
+            with self.db_connection.cursor() as cursor:
+                for data in data_dict['train_data']:
+                    # create record
+                    rec = (data_dict['creation_date'],
+                     data_dict['day'],
+                     data['relation'],
+                     data['train_number'],
+                     data['line'],
+                     data['delay'],
+                     data['elvira_id'],
+                     data['coord_lat'],
+                     data['coord_lon'],
+                     data['company'])
+                    # insert record
+                    logger.debug(f'Inserting record: {data}')
+                    cursor.execute(insert, rec)
+            self.db_connection.commit()
+            logger.info('Committing data...')
+
+        except Exception as e:
+            logger.error(f'DATABASE ERROR: {e}')
+        finally:
+            self.db_connection.close()
+            logger.info('Database connection closed.')
+
+    def debug_run(self):
+        """ Function very similar to 'run', but only executing one get_data-unpack-upload cycle for testing purposes """
         pass
 
     def run(self):
         """ Function for Thread.start to run. Periodically get data about the trains, and uploads it in the database"""
-        pass
-
-
+        while self.enabled:
+            # get-unpack-upload data
+            pass
 
 
 r = requests.post('http://vonatinfo.mav-start.hu/map.aspx/getData', json={"a":"TRAINS","jo":{"history":False,"id":False}})
