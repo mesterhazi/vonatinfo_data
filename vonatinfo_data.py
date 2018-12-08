@@ -124,3 +124,14 @@ class VonatDataGetter(threading.Thread):
     def stop(self):
         self.enabled = False
 
+if __name__ == '__main__':
+    vonatinfo_data_getter = VonatDataGetter()
+    vonatinfo_data_getter.start()
+
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        vonatinfo_data_getter.stop()
+    finally:
+        pass
