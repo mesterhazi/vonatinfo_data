@@ -23,7 +23,7 @@ class VonatDataGetter(threading.Thread):
             password='',
             db=database[1],
             charset='utf8mb4',
-            cursorclass = pymysql.cursors.DictCursor
+            cursorclass=pymysql.cursors.DictCursor
         )
         self.enabled = True
         logger.info("Initialization done...")
@@ -105,14 +105,22 @@ class VonatDataGetter(threading.Thread):
 
     def debug_run(self):
         """ Function very similar to 'run', but only executing one get_data-unpack-upload cycle for testing purposes """
+        logger.info('debug_run called...')
+        raw_data = self._get_data()
+        unpacked_data = self._unpack_data(raw_data)
+        self._upload_to_database(unpacked_data)
+        logger.info('debug_run finished.')
         pass
 
     def run(self):
         """ Function for Thread.start to run. Periodically get data about the trains, and uploads it in the database"""
         while self.enabled:
-            # get-unpack-upload data
-            pass
+            logger.info('Run called...')
+            raw_data = self._get_data()
+            unpacked_data = self._unpack_data(raw_data)
+            self._upload_to_database(unpacked_data)
+            logger.info('Run finished.')
 
+    def stop(self):
+        self.enabled = False
 
-r = requests.post('http://vonatinfo.mav-start.hu/map.aspx/getData', json={"a":"TRAINS","jo":{"history":False,"id":False}})
-print(r.raw)
