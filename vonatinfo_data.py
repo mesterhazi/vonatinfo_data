@@ -12,7 +12,7 @@ handler = logging.FileHandler('vonat_data.log')
 logger.addHandler(handler)
 
 class VonatDataGetter(threading.Thread):
-    def __init__(self, database=('127.0.0.1', 'train-data'), period_s=300, url='http://vonatinfo.mav-start.hu/map.aspx/getData'):
+    def __init__(self, database=('127.0.0.1', 'train_data'), period_s=300, url='http://vonatinfo.mav-start.hu/map.aspx/getData'):
         logger.info(f"Initializing VonatDataGetter : db:{database} period:{period_s} url:{url}")
         super().__init__()
         self.url = url
@@ -20,7 +20,7 @@ class VonatDataGetter(threading.Thread):
         self.db_connection = pymysql.connect(
             host=database[0],
             user='vonat_data_getter',
-            password='root',
+            password='user',
             db=database[1],
             charset='utf8mb4',
             cursorclass=pymysql.cursors.DictCursor
@@ -75,37 +75,40 @@ class VonatDataGetter(threading.Thread):
     def _upload_to_database(self, data_dict):
         """ Uploads the given data to a mysql server that is given in the __init__ method of the class"""
         self.db_connection.ping(reconnect=True)  # reconnects if needed
-        insert = """INSERT INTO 'trains' ('creation_date', 'day', 'relation', 'train_number', 'line', 
-        'delay', 'elvira_id', 'coord_lat', 'coord_lon', 'company') 
-        VALUES (%s, %s, %s, %s, %s, %d, %s, %f, %f, %s)"""
+        insert = """INSERT INTO trains (creation_date, day, relation, train_number, line, 
+                delay, elvira_id, coord_lat, coord_lon, company) 
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s);"""
         logger.info('Connected to database.')
-        try:
-            with self.db_connection.cursor() as cursor:
-                for data in data_dict['train_data']:
+        with self.db_connection.cursor() as cursor:
+            for data in data_dict['train_data']:
+                try:
                     # create record
-                    rec = (data_dict['creation_date'],
+                    rec = (data_dict['creation_time'],
                      data_dict['day'],
-                     data['relation'],
-                     data['train_number'],
-                     data['line'],
-                     data['delay'],
-                     data['elvira_id'],
-                     data['coord_lat'],
-                     data['coord_lon'],
-                     data['company'])
+                     data.get('@Relation'),  # @Relation can be missing
+                     data['@TrainNumber'],
+                     data['@Line'],
+                     data['@Delay'],
+                     data['@ElviraID'],
+                     data['@Lat'],
+                     data['@Lon'],
+                     data['@Menetvonal'])
                     # insert record
                     logger.debug(f'Inserting record: {data}')
                     print(insert)
                     print(rec)
                     cursor.execute(insert, rec)
+                except KeyError as e:
+                    logger.info(f'Key {e} missing')
+                except Exception as e:
+                    logger.error(f'DATABASE ERROR: {type(e)}:{e}')
+        try:
             self.db_connection.commit()
             logger.info('Committing data...')
-
-        except Exception as e:
-            logger.error(f'DATABASE ERROR: {e}')
         finally:
             self.db_connection.close()
             logger.info('Database connection closed.')
+
 
     def debug_run(self):
         """ Function very similar to 'run', but only executing one get_data-unpack-upload cycle for testing purposes """
