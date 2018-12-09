@@ -1,14 +1,14 @@
-CREATE TABLE 'trains' (
-'id' int(11) NOT NULL AUTO_INCREMENT,
-'creation_date' DATE,
-'day' DATE,
-'relation' VARCHAR(255),
-'train_number' VARCHAR(255)
-'line' VARCHAR(255),
-'delay' SMALLINT,
-'elvira_id' VARCHAR(255),
-'coord_lat' FLOAT,
-'coord_lon' FLOAT,
-'company' VARCHAR(255),
+CREATE TABLE trains (
+id int(11) KEY NOT NULL AUTO_INCREMENT,
+creation_date DATE,
+day DATE,
+relation VARCHAR(255),
+train_number VARCHAR(255),
+line VARCHAR(255),
+delay SMALLINT,
+elvira_id VARCHAR(255),
+coord_lat FLOAT,
+coord_lon FLOAT,
+company VARCHAR(255)
 ) DEFAULT CHARSET=utf8
 AUTO_INCREMENT=1;
