@@ -12,7 +12,7 @@ handler = logging.FileHandler('vonat_data.log')
 logger.addHandler(handler)
 
 class VonatDataGetter(threading.Thread):
-    def __init__(self, database=('127.0.0.1', 'trains'), period_s=300, url='http://vonatinfo.mav-start.hu/map.aspx/getData'):
+    def __init__(self, database=('127.0.0.1', 'train-data'), period_s=300, url='http://vonatinfo.mav-start.hu/map.aspx/getData'):
         logger.info(f"Initializing VonatDataGetter : db:{database} period:{period_s} url:{url}")
         super().__init__()
         self.url = url
@@ -20,7 +20,7 @@ class VonatDataGetter(threading.Thread):
         self.db_connection = pymysql.connect(
             host=database[0],
             user='vonat_data_getter',
-            password='',
+            password='root',
             db=database[1],
             charset='utf8mb4',
             cursorclass=pymysql.cursors.DictCursor
@@ -44,9 +44,11 @@ class VonatDataGetter(threading.Thread):
 
     def _unpack_data(self, json_str):
         # TODO error handling
-        action = json_str['d']['action']
-        param = json_str['d']['param']
-        result = json_str['d']['result']
+        json_obj = json.loads(json_str)
+        print(json_obj)
+        action = json_obj['d']['action']
+        param = json_obj['d']['param']
+        result = json_obj['d']['result']
         creation_time = result['@CreationTime']
         package_type = result['@PackageType']  # GpsData expected
 
@@ -93,6 +95,8 @@ class VonatDataGetter(threading.Thread):
                      data['company'])
                     # insert record
                     logger.debug(f'Inserting record: {data}')
+                    print(insert)
+                    print(rec)
                     cursor.execute(insert, rec)
             self.db_connection.commit()
             logger.info('Committing data...')
@@ -126,12 +130,13 @@ class VonatDataGetter(threading.Thread):
 
 if __name__ == '__main__':
     vonatinfo_data_getter = VonatDataGetter()
-    vonatinfo_data_getter.start()
-
-    try:
-        while True:
-            time.sleep(1)
-    except KeyboardInterrupt:
-        vonatinfo_data_getter.stop()
-    finally:
-        pass
+    vonatinfo_data_getter.debug_run()
+    # vonatinfo_data_getter.start()
+    #
+    # try:
+    #     while True:
+    #         time.sleep(1)
+    # except KeyboardInterrupt:
+    #     vonatinfo_data_getter.stop()
+    # finally:
+    #     pass
