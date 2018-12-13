@@ -64,7 +64,7 @@ class VonatDataGetter(threading.Thread):
         """
         logger.info("Unpacking data time: {}...".format(creation_time))
         ret_data = {
-            'creation_time' : creation_time,
+            'creation_time' : creation_time.split(' ')[1],  # only get H:M:S
             'train_data' : train_data,
             'day' : time.strftime('%Y-%m-%d')
         }
@@ -74,7 +74,7 @@ class VonatDataGetter(threading.Thread):
     def _upload_to_database(self, data_dict):
         """ Uploads the given data to a mysql server that is given in the __init__ method of the class"""
         self.db_connection.ping(reconnect=True)  # reconnects if needed
-        insert = """INSERT INTO trains (creation_date, day, relation, train_number, line, 
+        insert = """INSERT INTO trains (creation_time, day, relation, train_number, line, 
                 delay, elvira_id, coord_lat, coord_lon, company) 
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s);"""
         logger.info('Connected to database.')
@@ -133,12 +133,12 @@ class VonatDataGetter(threading.Thread):
 
 if __name__ == '__main__':
     vonatinfo_data_getter = VonatDataGetter()
-    # vonatinfo_data_getter.debug_run()
-    vonatinfo_data_getter.start()
-    try:
-        while True:
-            time.sleep(1)
-    except KeyboardInterrupt:
-        vonatinfo_data_getter.stop()
-    finally:
-        pass
+    vonatinfo_data_getter.debug_run()
+    # vonatinfo_data_getter.start()
+    # try:
+    #     while True:
+    #         time.sleep(1)
+    # except KeyboardInterrupt:
+    #     vonatinfo_data_getter.stop()
+    # finally:
+    #     pass
