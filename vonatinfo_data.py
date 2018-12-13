@@ -45,7 +45,6 @@ class VonatDataGetter(threading.Thread):
     def _unpack_data(self, json_str):
         # TODO error handling
         json_obj = json.loads(json_str)
-        print(json_obj)
         action = json_obj['d']['action']
         param = json_obj['d']['param']
         result = json_obj['d']['result']
@@ -95,8 +94,6 @@ class VonatDataGetter(threading.Thread):
                      data['@Menetvonal'])
                     # insert record
                     logger.debug('Inserting record: {}'.format(data))
-                    print(insert)
-                    print(rec)
                     cursor.execute(insert, rec)
                 except KeyError as e:
                     logger.info('Key {} missing'.format(e))
