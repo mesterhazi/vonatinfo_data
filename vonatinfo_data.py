@@ -119,11 +119,14 @@ class VonatDataGetter(threading.Thread):
     def run(self):
         """ Function for Thread.start to run. Periodically get data about the trains, and uploads it in the database"""
         while self.enabled:
-            logger.info('Run called...')
+            logger.info('Getting and uploading data...')
+            s = time.time()
             raw_data = self._get_data()
             unpacked_data = self._unpack_data(raw_data)
             self._upload_to_database(unpacked_data)
-            logger.info('Run finished.')
+            e = time.time()
+            logger.info('Finished in {}s'.format(e-s))
+            time.sleep(self.period)
 
     def stop(self):
         self.enabled = False
