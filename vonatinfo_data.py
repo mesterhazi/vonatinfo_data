@@ -13,7 +13,7 @@ logger.addHandler(handler)
 
 class VonatDataGetter(threading.Thread):
     def __init__(self, database=('127.0.0.1', 'train_data'), period_s=300, url='http://vonatinfo.mav-start.hu/map.aspx/getData'):
-        logger.info(f"Initializing VonatDataGetter : db:{database} period:{period_s} url:{url}")
+        logger.info("Initializing VonatDataGetter : db:{} period:{} url:{}".format(database, period_s, url))
         super().__init__()
         self.url = url
         self.period = period_s
@@ -35,9 +35,9 @@ class VonatDataGetter(threading.Thread):
                               json={"a":"TRAINS","jo":{"history":history,"id":id}})
             r.raise_for_status()
         except requests.HTTPError:
-            logger.error(f"HTTP response error! - {r.status_code} - url:{self.url} history{history} id:{id}")
+            logger.error("HTTP response error! - {} - url:{} history{} id:{}".format(r.status_code, self.url, history, id))
         except:
-            logger.error(f"Unknown error occured when makig a POST request url:{self.url} history{history} id:{id}")
+            logger.error("Unknown error occured when makig a POST request url:{} history{} id:{}".format(self.url, history, id))
             return None
 
         return r.text
@@ -63,7 +63,7 @@ class VonatDataGetter(threading.Thread):
              '@Relation': str, - "starting_station - final_station"
              '@TrainNumber': str, - Train ID 55[6 digit train number according to elvira.hu]
         """
-        logger.info(f"Unpacking data time: {creation_time}...")
+        logger.info("Unpacking data time: {}...".format(creation_time))
         ret_data = {
             'creation_time' : creation_time,
             'train_data' : train_data,
@@ -94,14 +94,14 @@ class VonatDataGetter(threading.Thread):
                      data['@Lon'],
                      data['@Menetvonal'])
                     # insert record
-                    logger.debug(f'Inserting record: {data}')
+                    logger.debug('Inserting record: {}'.format(data))
                     print(insert)
                     print(rec)
                     cursor.execute(insert, rec)
                 except KeyError as e:
-                    logger.info(f'Key {e} missing')
+                    logger.info('Key {} missing'.format(e))
                 except Exception as e:
-                    logger.error(f'DATABASE ERROR: {type(e)}:{e}')
+                    logger.error('DATABASE ERROR: {type(e)}:{e}'.format(type(e),e))
         try:
             self.db_connection.commit()
             logger.info('Committing data...')
