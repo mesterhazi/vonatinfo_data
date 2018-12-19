@@ -36,15 +36,21 @@ class VonatDataGetter(threading.Thread):
             r.raise_for_status()
         except requests.HTTPError:
             logger.error("HTTP response error! - {} - url:{} history{} id:{}".format(r.status_code, self.url, history, id))
-        except:
-            logger.error("Unknown error occured when makig a POST request url:{} history{} id:{}".format(self.url, history, id))
+        except Exception as e:
+            logger.error("Error occured when makig a POST request url:{} history{} id:{}".format(self.url, history, id))
+				logger.error(str(e))            
             return None
 
         return r.text
 
     def _unpack_data(self, json_str):
         # TODO error handling
-        json_obj = json.loads(json_str)
+        if json_str not None:
+            json_obj = json.loads(json_str)
+        else:
+        		logger.error("None received as json string, cannot unpack data!")
+        	   return None
+        	   
         action = json_obj['d']['action']
         param = json_obj['d']['param']
         result = json_obj['d']['result']
@@ -73,6 +79,10 @@ class VonatDataGetter(threading.Thread):
 
     def _upload_to_database(self, data_dict):
         """ Uploads the given data to a mysql server that is given in the __init__ method of the class"""
+        if data_dict is None:
+        	   logger.error("None received as data_dict. There is nothing to upload to the dB")
+        	   return None
+        	   
         self.db_connection.ping(reconnect=True)  # reconnects if needed
         insert = """INSERT INTO trains (creation_time, day, relation, train_number, line, 
                 delay, elvira_id, coord_lat, coord_lon, company) 
