@@ -33,6 +33,7 @@ class DataBaseHandler():
     def execute(self, sql, data):
         """ Executes sql command with added data parameters.
         example: execute('INSERT INTO table_name (date) VALUES (%s)', '2018.05.05')  """
+        self.ping()
         try:
             with self._connection.cursor() as cursor:
                 logger.debug("{} - Executing {} data: {}".format(self, sql, data))
@@ -53,6 +54,7 @@ class DataBaseHandler():
             self.execute(sql, records)
             return
 
+        self.ping()
         try:
             with self._connection.cursor() as cursor:
                 for data in records:
