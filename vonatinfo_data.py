@@ -2,6 +2,7 @@ import requests
 import threading
 import logging
 import pymysql.cursors
+from DataBaseHandler import DataBaseHandler
 import time
 import json
 
@@ -12,19 +13,12 @@ handler = logging.FileHandler('vonat_data.log')
 logger.addHandler(handler)
 
 class VonatDataGetter(threading.Thread):
-    def __init__(self, database=('127.0.0.1', 'train_data'), period_s=300, url='http://vonatinfo.mav-start.hu/map.aspx/getData'):
+    def __init__(self, database=('127.0.0.1', 'train_data'), user=('vonat_data_getter','user'), period_s=300, url='http://vonatinfo.mav-start.hu/map.aspx/getData'):
         logger.info("Initializing VonatDataGetter : db:{} period:{} url:{}".format(database, period_s, url))
         super().__init__()
         self.url = url
         self.period = period_s
-        self.db_connection = pymysql.connect(
-            host=database[0],
-            user='vonat_data_getter',
-            password='user',
-            db=database[1],
-            charset='utf8mb4',
-            cursorclass=pymysql.cursors.DictCursor
-        )
+        self.db_handler = DataBaseHandler(database=database, user=user)
         self.enabled = True
         logger.info("Initialization done...")
 
@@ -83,37 +77,34 @@ class VonatDataGetter(threading.Thread):
             logger.error("None received as data_dict. There is nothing to upload to the dB")
             return None
                
-        self.db_connection.ping(reconnect=True)  # reconnects if needed
+        self.db_handler.ping(reconnect=True)  # reconnects if needed
         insert = """INSERT INTO trains (creation_time, day, relation, train_number, line, 
                 delay, elvira_id, coord_lat, coord_lon, company) 
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s);"""
         logger.info('Connected to database.')
-        with self.db_connection.cursor() as cursor:
-            for data in data_dict['train_data']:
-                try:
-                    # create record
-                    rec = (data_dict['creation_time'],
-                     data_dict['day'],
-                     data.get('@Relation'),  # @Relation can be missing
-                     data['@TrainNumber'],
-                     data['@Line'],
-                     data['@Delay'],
-                     data['@ElviraID'],
-                     data['@Lat'],
-                     data['@Lon'],
-                     data['@Menetvonal'])
-                    # insert record
-                    logger.debug('Inserting record: {}'.format(data))
-                    cursor.execute(insert, rec)
-                except KeyError as e:
-                    logger.info('Key {} missing'.format(e))
-                except Exception as e:
-                    logger.error('DATABASE ERROR: {type(e)}:{e}'.format(type(e),e))
+        record_list = []
+        for data in data_dict['train_data']:
+            try:
+                # create record
+                rec = (data_dict['creation_time'],
+                       data_dict['day'],
+                       data.get('@Relation'),  # @Relation can be missing
+                       data['@TrainNumber'],
+                       data['@Line'],
+                       data['@Delay'],
+                       data['@ElviraID'],
+                       data['@Lat'],
+                       data['@Lon'],
+                       data['@Menetvonal'])
+                # insert record
+                logger.debug('Inserting record to list: {}'.format(data))
+                record_list.append(rec)
+            except KeyError as e:
+                logger.info('Key {} missing'.format(e))
         try:
-            self.db_connection.commit()
-            logger.info('Committing data...')
+            self.db_handler.upload_records_commit(insert, record_list)
         finally:
-            self.db_connection.close()
+            self.db_handler.close()
             logger.info('Database connection closed.')
 
 

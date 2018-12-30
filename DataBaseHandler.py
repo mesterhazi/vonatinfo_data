@@ -20,15 +20,22 @@ class DataBaseHandler():
             db=database[1],
             charset=character_set,
             cursorclass=cursorclass)
+        self.is_connected = True
 
     def __del__(self):
-        self._connection.close()
+        logger.info('DatabaseHandler destructor called')
+        self.close()
 
+    def close(self):
+        if self.is_connected:
+            self._connection.close()
+            self.is_connected = False
     def __str__(self):
         return self.str
 
-    def ping(self):
-        self._connection.ping(reconnect=True)
+    def ping(self, reconnect=True):
+        self._connection.ping(reconnect)
+        self.is_connected = True
 
     def execute(self, sql, data):
         """ Executes sql command with added data parameters.
@@ -52,7 +59,7 @@ class DataBaseHandler():
          Use it to upload multiple records held in an iterable object into a table"""
         if not isinstance(records, collections.Iterable):
             self.execute(sql, records)
-            return
+            return 1
 
         self.ping()
         try:
@@ -63,10 +70,12 @@ class DataBaseHandler():
         except Exception as e:
             #TODO elaborate DB related exception handling
             logger.error('DATABASE ERROR: {type(e)}:{e}'.format(type(e),e))
+        return len(records)
 
     def upload_records_commit(self, sql, records):
-        self.upload_records(sql, records)
+        num = self.upload_records(sql, records)
         self.commit()
+        logger.info('{} records committed to database {}'.format(num, self))
 
     def commit(self):
         """ Commits the changes made to the DB """
