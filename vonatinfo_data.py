@@ -48,8 +48,8 @@ class VonatDataGetter(threading.Thread):
         action = json_obj['d']['action']
         param = json_obj['d']['param']
         result = json_obj['d']['result']
-        creation_time = result['@CreationTime']
-        package_type = result['@PackageType']  # GpsData expected
+        creation_time = result.get('@CreationTime')
+        package_type = result.get('@PackageType')  # GpsData expected
 
         train_data = result['Trains']['Train']  # This is a list now
         """ every list element is a dict and has the following pattern:
