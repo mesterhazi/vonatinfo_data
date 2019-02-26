@@ -1,8 +1,7 @@
 import requests
 import threading
 import logging
-import pymysql.cursors
-from DataBaseHandler import DataBaseHandler
+from workers import upload_all_worker
 import time
 import json
 
@@ -13,12 +12,14 @@ handler = logging.FileHandler('vonat_data.log')
 logger.addHandler(handler)
 
 class VonatDataGetter(threading.Thread):
-    def __init__(self, database=('127.0.0.1', 'train_data'), user=('vonat_data_getter','user'), period_s=300, url='http://vonatinfo.mav-start.hu/map.aspx/getData'):
-        logger.info("Initializing VonatDataGetter : db:{} period:{} url:{}".format(database, period_s, url))
+    def __init__(self, period_s=300, url='http://vonatinfo.mav-start.hu/map.aspx/getData',
+    workers = [upload_all_worker]):
+        logger.info("Initializing VonatDataGetter : period:{} url:{}".format(period_s, url))
         super().__init__()
         self.url = url
         self.period = period_s
-        self.db_handler = DataBaseHandler(database=database, user=user)
+        self.workers = workers
+        self.active_trains = []
         self.enabled = True
         logger.info("Initialization done...")
 
@@ -32,7 +33,7 @@ class VonatDataGetter(threading.Thread):
             logger.error("HTTP response error! - {} - url:{} history{} id:{}".format(r.status_code, self.url, history, id))
         except Exception as e:
             logger.error("Error occured when makig a POST request url:{} history{} id:{}".format(self.url, history, id))
-            logger.error(str(e))            
+            logger.error(str(e))
             return None
 
         return r.text
@@ -44,12 +45,12 @@ class VonatDataGetter(threading.Thread):
         else:
             logger.error("None received as json string, cannot unpack data!")
             return None
-        
+
         action = json_obj['d']['action']
         param = json_obj['d']['param']
         result = json_obj['d']['result']
-        creation_time = result['@CreationTime']
-        package_type = result['@PackageType']  # GpsData expected
+        creation_time = result.get('@CreationTime')
+        package_type = result.get('@PackageType')  # GpsData expected
 
         train_data = result['Trains']['Train']  # This is a list now
         """ every list element is a dict and has the following pattern:
@@ -71,61 +72,36 @@ class VonatDataGetter(threading.Thread):
 
         return ret_data
 
-    def _upload_to_database(self, data_dict):
-        """ Uploads the given data to a mysql server that is given in the __init__ method of the class"""
-        if data_dict is None:
-            logger.error("None received as data_dict. There is nothing to upload to the dB")
-            return None
-               
-        self.db_handler.ping(reconnect=True)  # reconnects if needed
-        insert = """INSERT INTO trains (creation_time, day, relation, train_number, line, 
-                delay, elvira_id, coord_lat, coord_lon, company) 
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s);"""
-        logger.info('Connected to database.')
-        record_list = []
-        for data in data_dict['train_data']:
-            try:
-                # create record
-                rec = (data_dict['creation_time'],
-                       data_dict['day'],
-                       data.get('@Relation'),  # @Relation can be missing
-                       data['@TrainNumber'],
-                       data['@Line'],
-                       data['@Delay'],
-                       data['@ElviraID'],
-                       data['@Lat'],
-                       data['@Lon'],
-                       data['@Menetvonal'])
-                # insert record
-                logger.debug('Inserting record to list: {}'.format(data))
-                record_list.append(rec)
-            except KeyError as e:
-                logger.info('Key {} missing'.format(e))
-        try:
-            self.db_handler.upload_records_commit(insert, record_list)
-        finally:
-            self.db_handler.close()
-            logger.info('Database connection closed.')
-
-
     def debug_run(self):
         """ Function very similar to 'run', but only executing one get_data-unpack-upload cycle for testing purposes """
         logger.info('debug_run called...')
         raw_data = self._get_data()
         unpacked_data = self._unpack_data(raw_data)
-        self._upload_to_database(unpacked_data)
+        for w in self.workers:
+            t = threading.Thread(target=w, args=(unpacked_data,))
+            t.start()
+            t.join()
         logger.info('debug_run finished.')
 
     def run(self):
         """ Function for Thread.start to run. Periodically get data about the trains, and uploads it in the database"""
+        logger.info('#VonatDataGetter STARTEED!')
         while self.enabled:
-            logger.info('Getting and uploading data...')
+            logger.info('Getting data...')
             s = time.time()
             raw_data = self._get_data()
             unpacked_data = self._unpack_data(raw_data)
-            self._upload_to_database(unpacked_data)
+
+            threads = []
+            for w in self.workers:
+                threads.append(threading.Thread(target=w, args=(unpacked_data)))
+            for t in threads:
+                t.start()
+            for t in threads:
+                t.join()
+
             e = time.time()
-            logger.info('Finished in {}s'.format(e-s))
+            logger.info('All workers finished in {}s'.format(e-s))
             time.sleep(self.period)
 
     def stop(self):
