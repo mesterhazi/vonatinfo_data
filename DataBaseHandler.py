@@ -47,7 +47,7 @@ class DataBaseHandler():
                 cursor.execute(sql, data)
         except Exception as e:
             #TODO elaborate DB related exception handling
-            logger.error('DATABASE ERROR: {type(e)}:{e}'.format(type(e),e))
+            logger.error('DATABASE ERROR: {}:{}'.format(type(e),e))
 
     def execute_commit(self, sql, data):
         """ Executes sql command with added data parameters and commits it to the DB """
@@ -69,7 +69,7 @@ class DataBaseHandler():
                     cursor.execute(sql, data)
         except Exception as e:
             #TODO elaborate DB related exception handling
-            logger.error('DATABASE ERROR: {type(e)}:{e}'.format(type(e),e))
+            logger.error('DATABASE ERROR: {}:{}'.format(type(e),e))
         return len(records)
 
     def upload_records_commit(self, sql, records):
@@ -80,7 +80,3 @@ class DataBaseHandler():
     def commit(self):
         """ Commits the changes made to the DB """
         self._connection.commit()
-
-
-
-
