@@ -32,7 +32,6 @@ def upload_all_worker(data_dict, *args):
     insert = """INSERT INTO {} (creation_time, day, relation, train_number, line, delay, elvira_id, coord_lat, coord_lon, company)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s);""".format(table)
 
-    print("########## {}".format(insert))
     logger.info('Connected to database.')
     record_list = []
     for data in data_dict['train_data']:
