@@ -94,7 +94,7 @@ class VonatDataGetter(threading.Thread):
 
             threads = []
             for w in self.workers:
-                threads.append(threading.Thread(target=w, args=(unpacked_data)))
+                threads.append(threading.Thread(target=w, args=(unpacked_data,)))
             for t in threads:
                 t.start()
             for t in threads:
