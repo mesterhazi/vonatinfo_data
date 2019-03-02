@@ -78,7 +78,7 @@ class VonatDataGetter(threading.Thread):
         raw_data = self._get_data()
         unpacked_data = self._unpack_data(raw_data)
         for w in self.workers:
-            t = threading.Thread(target=w, args=(unpacked_data,))
+            t = threading.Thread(target=w, args=(unpacked_data,), kwargs={'active_trains' : self.active_trains})
             t.start()
             t.join()
         logger.info('debug_run finished.')
@@ -94,7 +94,7 @@ class VonatDataGetter(threading.Thread):
 
             threads = []
             for w in self.workers:
-                threads.append(threading.Thread(target=w, args=(unpacked_data,)))
+                threads.append(threading.Thread(target=w, args=(unpacked_data,), kwargs={'active_trains' : self.active_trains}))
             for t in threads:
                 t.start()
             for t in threads:

@@ -13,6 +13,17 @@ company VARCHAR(255)
 ) DEFAULT CHARSET=utf8
 AUTO_INCREMENT=1;
 
+CREATE TABLE final_delays (
+id int(11) KEY NOT NULL AUTO_INCREMENT,
+creation_time TIME,
+day DATE,
+relation VARCHAR(255),
+train_number VARCHAR(255),
+delay SMALLINT,
+coord_lat FLOAT,
+coord_lon FLOAT) DEFAULT CHARSET=utf8
+AUTO_INCREMENT=1;
+
 CREATE TABLE trains_sandbox (
 id int(11) KEY NOT NULL AUTO_INCREMENT,
 creation_time TIME,
