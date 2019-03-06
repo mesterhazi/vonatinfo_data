@@ -19,7 +19,7 @@ class VonatDataGetter(threading.Thread):
         self.url = url
         self.period = period_s
         self.workers = workers
-        self.active_trains = []
+        self.active_trains = {}
         self.enabled = True
         logger.info("Initialization done...")
 
@@ -77,11 +77,13 @@ class VonatDataGetter(threading.Thread):
         logger.info('debug_run called...')
         raw_data = self._get_data()
         unpacked_data = self._unpack_data(raw_data)
+        return unpacked_data
         for w in self.workers:
             t = threading.Thread(target=w, args=(unpacked_data,), kwargs={'active_trains' : self.active_trains})
             t.start()
             t.join()
         logger.info('debug_run finished.')
+        return unpacked_data
 
     def run(self):
         """ Function for Thread.start to run. Periodically get data about the trains, and uploads it in the database"""

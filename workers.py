@@ -2,7 +2,7 @@ import logging
 import threading
 import time
 from DataBaseHandler import DataBaseHandler
-from config import upload_all_worker_conf
+from config import upload_all_worker_conf, final_delay_worker_conf
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -10,7 +10,7 @@ handler = logging.FileHandler('../vonat_data.log')
 
 logger.addHandler(handler)
 
-def upload_all_worker(data_dict, *args):
+def upload_all_worker(data_dict, *args, **kwargs):
     """ Worker thread utilized by the VonatDataGetter classself.
     Uploads all data in the trains """
     database = upload_all_worker_conf['database']
@@ -60,36 +60,40 @@ def upload_all_worker(data_dict, *args):
 
 
 
-def upload_delays_worker(data_dict, active_trains):
+def upload_delays_worker(data_dict, *args, **kwargs):
     """ Upload final delays for every train every day.
     active_trains = {train_number : (record, missing_counter)}"""
     if data_dict is None:
         logger.error('Empty dictionary received!')
         return
+    active_trains = kwargs.get('active_trains')
     database = final_delay_worker_conf['database']
     user = final_delay_worker_conf['user']
     table = final_delay_worker_conf['table']
 
     data_dict_sandbox = list(data_dict) # make a deep copy that is allowed to change
     for data in data_dict['train_data']:
-        active_trains[data['TrainNumber']][0] = ( # Add train to active_trains
-            data_dict['creation_time'],
+        print(data)
+        active_train_record = ( # Add train to active_trains
+            (data_dict['creation_time'],
             data_dict['day'],
             data.get('@Relation'),
             data['@TrainNumber'],
             data['@Delay'],
             data['@Lat'],
-            data['@Lon'])
+            data['@Lon']),
+            0) # Reset missing_counter for every train present
+        active_trains[data['@TrainNumber']] = active_train_record
 
-        active_trains[data['TrainNumber']][1] = 0  # Reset missing counter for every received train
     trains_arrived = []
     for key, value in active_trains.items():
+        print(f"{key} : {value}, {value[1]}")
         if value[1] != 0:
             active_trains[key][1] = value[1] + 1  # increment missing_counter
         if active_trains[key][1] > final_delay_worker_conf['missing_threshold']:
             trains_arrived.append(value[0])
             active_trains.pop(key)
-    logger.info(f'{trains_arrived.len()} trains arrived.')
+    logger.info(f'{len(trains_arrived)} trains arrived.')
     if trains_arrived == []:
         return # nothing to upload
 
@@ -111,8 +115,3 @@ def upload_delays_worker(data_dict, active_trains):
     finally:
         db_handler.close()
         logger.info('Database connection closed.')
-
-
-
-    TODO: for train in data_dict - if not in active_trains then add else update
-    if not in data dict increment missing_counter if missing_counter > threshold accept record as final delay
