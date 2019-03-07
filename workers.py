@@ -87,13 +87,18 @@ def upload_delays_worker(data_dict, *args, **kwargs):
         active_trains[data['@TrainNumber']] = active_train_record
 
     trains_arrived = []
+    active_trains_to_del = []
     for key, value in active_trains.items():
         print(f"{key} : {value}, {value[1]}")
         if key not in data_dict_train_numbers:
             active_trains[key][1] = value[1] + 1  # increment missing_counter
-        if active_trains[key][1] > final_delay_worker_conf['missing_threshold']:
+        if active_trains[key][1] >= final_delay_worker_conf['missing_threshold']:
             trains_arrived.append(value[0])
-            active_trains.pop(key)
+            active_trains_to_del.append(key)
+
+    for k in active_trains_to_del:
+        active_trains.pop(k, None)
+
     logger.info(f'{len(trains_arrived)} trains arrived.')
     if trains_arrived == []:
         return # nothing to upload
@@ -105,7 +110,7 @@ def upload_delays_worker(data_dict, *args, **kwargs):
         'Could not initialize a DataBaseHandler instance with the given parameters:db:{}, user:{}'.format(
         database, user))
         logger.error(str(e))
-        return
+        return trains_arrived
 
     db_handler.ping(reconnect=True)  # reconnects if needed
     insert = """INSERT INTO {} (creation_time, day, relation, train_number, delay, coord_lat, coord_lon)
@@ -114,5 +119,7 @@ def upload_delays_worker(data_dict, *args, **kwargs):
     try:
         db_handler.upload_records_commit(insert, trains_arrived)
     finally:
-        db_handler.close()
-        logger.info('Database connection closed.')
+        if db_handler is not None:
+            db_handler.close()
+            logger.info('Database connection closed.')
+        return trains_arrived
