@@ -71,10 +71,11 @@ def upload_delays_worker(data_dict, *args, **kwargs):
     user = final_delay_worker_conf['user']
     table = final_delay_worker_conf['table']
 
-    data_dict_sandbox = list(data_dict) # make a deep copy that is allowed to change
+    data_dict_train_numbers = tuple(tr['@TrainNumber'] for tr in data_dict['train_data'])
+    print(f'Trains now: {data_dict_train_numbers}')
     for data in data_dict['train_data']:
         print(data)
-        active_train_record = ( # Add train to active_trains
+        active_train_record = [ # Add train to active_trains
             (data_dict['creation_time'],
             data_dict['day'],
             data.get('@Relation'),
@@ -82,13 +83,13 @@ def upload_delays_worker(data_dict, *args, **kwargs):
             data['@Delay'],
             data['@Lat'],
             data['@Lon']),
-            0) # Reset missing_counter for every train present
+            0] # Reset missing_counter for every train present
         active_trains[data['@TrainNumber']] = active_train_record
 
     trains_arrived = []
     for key, value in active_trains.items():
         print(f"{key} : {value}, {value[1]}")
-        if value[1] != 0:
+        if key not in data_dict_train_numbers:
             active_trains[key][1] = value[1] + 1  # increment missing_counter
         if active_trains[key][1] > final_delay_worker_conf['missing_threshold']:
             trains_arrived.append(value[0])

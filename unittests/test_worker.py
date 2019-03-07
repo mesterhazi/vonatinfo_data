@@ -19,6 +19,63 @@ class Test_upload_delays_worker(unittest.TestCase):
         self.assertEqual(record[6], reference.get('@Lon'), '@Lon mismatch')
 
 
+    def test_some_update_active_trains(self):
+        data_dict_1 = {
+        'creation_time' : '17:02:20',
+        'day' : '2019-02-03',
+        'train_data' :
+        [{'@Relation' : 'Pecs',
+         '@TrainNumber' : '1',
+         '@Delay' : 10,
+         '@Lat' : '0.0',
+         '@Lon' : '0.0'},
+         {'@Relation' : 'Vp',
+          '@TrainNumber' : '2',
+          '@Delay' : 10,
+          '@Lat' : '0.0',
+          '@Lon' : '0.0'},
+          {'@Relation' : 'Vac',
+           '@TrainNumber' : '3',
+           '@Delay' : 10,
+           '@Lat' : '0.0',
+           '@Lon' : '0.0'}
+           ]
+        }
+        data_dict_2 = {
+        'creation_time' : '17:22:22',
+        'day' : '2019-02-03',
+        'train_data' :
+        [{'@Relation' : 'Pecs',
+         '@TrainNumber' : '1',
+         '@Delay' : 12,
+         '@Lat' : '0.0',
+         '@Lon' : '0.0'},
+         {'@Relation' : 'Vp',
+          '@TrainNumber' : '2',
+          '@Delay' : 12,
+          '@Lat' : '0.0',
+          '@Lon' : '0.0'},
+          {'@Relation' : 'Bocs',
+           '@TrainNumber' : '4',
+           '@Delay' : 12,
+           '@Lat' : '0.0',
+           '@Lon' : '0.0'}
+           ]
+        }
+        active_trains = {}
+        workers.upload_delays_worker(data_dict_1, active_trains=active_trains)
+        workers.upload_delays_worker(data_dict_2, active_trains=active_trains)
+        self.compare_record(active_trains['1'][0], data_dict_2['train_data'][0], data_dict_2)
+        self.assertEqual(active_trains['1'][1], 0, 'Missing counter mismatch')
+        self.compare_record(active_trains['2'][0], data_dict_2['train_data'][1], data_dict_2)
+        self.assertEqual(active_trains['2'][1], 0, 'Missing counter mismatch')
+        # train '3' not in data_dict_2
+        self.compare_record(active_trains['3'][0], data_dict_1['train_data'][2], data_dict_1)
+        self.assertEqual(active_trains['3'][1], 1, 'Missing counter mismatch')
+        self.compare_record(active_trains['4'][0], data_dict_2['train_data'][2], data_dict_2)
+        self.assertEqual(active_trains['4'][1], 0, 'Missing counter mismatch')
+
+
     def test_empty_active_trains(self):
         active_trains = {}
         data_dict = {
