@@ -1,7 +1,7 @@
 import requests
 import threading
 import logging
-from workers import upload_all_worker
+from workers import upload_all_worker, upload_delays_worker
 import time
 import json
 
@@ -13,7 +13,7 @@ logger.addHandler(handler)
 
 class VonatDataGetter(threading.Thread):
     def __init__(self, period_s=300, url='http://vonatinfo.mav-start.hu/map.aspx/getData',
-    workers = [upload_all_worker]):
+    workers = [upload_all_worker, upload_delays_worker]):
         logger.info("Initializing VonatDataGetter : period:{} url:{}".format(period_s, url))
         super().__init__()
         self.url = url
@@ -77,7 +77,6 @@ class VonatDataGetter(threading.Thread):
         logger.info('debug_run called...')
         raw_data = self._get_data()
         unpacked_data = self._unpack_data(raw_data)
-        return unpacked_data
         for w in self.workers:
             t = threading.Thread(target=w, args=(unpacked_data,), kwargs={'active_trains' : self.active_trains})
             t.start()
