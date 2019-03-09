@@ -96,7 +96,7 @@ def upload_delays_worker(data_dict, *args, **kwargs):
     for k in active_trains_to_del:
         active_trains.pop(k, None)
 
-    logger.info(f'{len(trains_arrived)} trains arrived.')
+    logger.info('{} trains arrived.'.format(len(trains_arrived)))
     if trains_arrived == []:
         return # nothing to upload
 
