@@ -45,24 +45,30 @@ class VonatDataGetter(threading.Thread):
         else:
             logger.error("None received as json string, cannot unpack data!")
             return None
+        try:
+            action = json_obj['d']['action']
+            param = json_obj['d']['param']
+            result = json_obj['d']['result']
+            creation_time = result.get('@CreationTime')
+            package_type = result.get('@PackageType')  # GpsData expected
 
-        action = json_obj['d']['action']
-        param = json_obj['d']['param']
-        result = json_obj['d']['result']
-        creation_time = result.get('@CreationTime')
-        package_type = result.get('@PackageType')  # GpsData expected
+            train_data = result['Trains']['Train']  # This is a list now
+            """ every list element is a dict and has the following pattern:
+                 '@Delay': int [minutes],
+                 '@ElviraID': str,
+                 '@Lat': float, - GPS coordinate
+                 '@Line': str, - train line ID
+                 '@Lon': float, - GPS coordinate
+                 '@Menetvonal': str, - company MAV or GYSEV
+                 '@Relation': str, - "starting_station - final_station"
+                 '@TrainNumber': str, - Train ID 55[6 digit train number according to elvira.hu]
+            """
+        except Exception as e:
+            logger.error("Error occured in _unpack_data tried to get data, tried to get data from:")
+            logger.error(json_obj)
+            logger.error(str(e))
+            return None
 
-        train_data = result['Trains']['Train']  # This is a list now
-        """ every list element is a dict and has the following pattern:
-             '@Delay': int [minutes],
-             '@ElviraID': str,
-             '@Lat': float, - GPS coordinate
-             '@Line': str, - train line ID
-             '@Lon': float, - GPS coordinate
-             '@Menetvonal': str, - company MAV or GYSEV
-             '@Relation': str, - "starting_station - final_station"
-             '@TrainNumber': str, - Train ID 55[6 digit train number according to elvira.hu]
-        """
         logger.info("Unpacking data time: {}...".format(creation_time))
         ret_data = {
             'creation_time' : creation_time.split(' ')[1],  # only get H:M:S
